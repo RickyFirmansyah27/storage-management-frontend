@@ -1,0 +1,284 @@
+
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { getAllItems, saveItem, deleteItem, getAllCategories } from "@/utils/localStorage";
+
+interface Item {
+  id: string;
+  name: string;
+  categoryId: string;
+  quantity: number;
+  unit: string;
+  minStock?: number;
+}
+
+const Items = () => {
+  const [items, setItems] = React.useState<Item[]>([]);
+  const [categories, setCategories] = React.useState<{id: string, name: string}[]>([]);
+  const [openDialog, setOpenDialog] = React.useState(false);
+  const [currentItem, setCurrentItem] = React.useState<Item | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState("");
+  
+  const [formData, setFormData] = React.useState({
+    name: "",
+    categoryId: "",
+    quantity: 0,
+    unit: "",
+    minStock: 0
+  });
+
+  React.useEffect(() => {
+    loadItems();
+    loadCategories();
+  }, []);
+
+  const loadItems = () => {
+    const loadedItems = getAllItems();
+    setItems(loadedItems);
+  };
+
+  const loadCategories = () => {
+    const loadedCategories = getAllCategories();
+    setCategories(loadedCategories);
+  };
+
+  const handleAddItem = () => {
+    setCurrentItem(null);
+    setFormData({
+      name: "",
+      categoryId: "",
+      quantity: 0,
+      unit: "",
+      minStock: 0
+    });
+    setOpenDialog(true);
+  };
+
+  const handleEditItem = (item: Item) => {
+    setCurrentItem(item);
+    setFormData({
+      name: item.name,
+      categoryId: item.categoryId,
+      quantity: item.quantity,
+      unit: item.unit,
+      minStock: item.minStock || 0
+    });
+    setOpenDialog(true);
+  };
+
+  const handleChange = (key: string, value: string | number) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveItem = () => {
+    if (!formData.name.trim()) {
+      toast.error("Nama item tidak boleh kosong");
+      return;
+    }
+
+    if (!formData.categoryId) {
+      toast.error("Kategori harus dipilih");
+      return;
+    }
+
+    const itemData = {
+      id: currentItem?.id || Date.now().toString(),
+      ...formData
+    };
+
+    saveItem(itemData);
+    setOpenDialog(false);
+    loadItems();
+    toast.success(`Item berhasil ${currentItem ? 'diperbarui' : 'ditambahkan'}`);
+  };
+
+  const handleDeleteItem = (id: string) => {
+    if (confirm("Yakin ingin menghapus item ini?")) {
+      deleteItem(id);
+      loadItems();
+      toast.success("Item berhasil dihapus");
+    }
+  };
+
+  const filteredItems = items.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    return category ? category.name : "Tidak ada kategori";
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto px-2 py-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <h1 className="text-3xl font-bold">Manajemen Item</h1>
+        <div className="flex gap-2 w-full md:w-auto">
+          <div className="flex-1 md:w-64">
+            <Input 
+              placeholder="Cari item..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Button onClick={handleAddItem}>Tambah Item</Button>
+        </div>
+      </div>
+
+      <div className="bg-card shadow-sm rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/50">
+                <th className="px-4 py-3 text-left font-medium">Nama</th>
+                <th className="px-4 py-3 text-left font-medium">Kategori</th>
+                <th className="px-4 py-3 text-center font-medium">Stok</th>
+                <th className="px-4 py-3 text-left font-medium">Satuan</th>
+                <th className="px-4 py-3 text-center font-medium">Min Stok</th>
+                <th className="px-4 py-3 text-right font-medium">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredItems.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-4 text-center text-muted-foreground">
+                    {searchTerm ? "Tidak ada item yang ditemukan" : "Belum ada item tersimpan"}
+                  </td>
+                </tr>
+              ) : (
+                filteredItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-muted/50">
+                    <td className="px-4 py-3">{item.name}</td>
+                    <td className="px-4 py-3">{getCategoryName(item.categoryId)}</td>
+                    <td className={`px-4 py-3 text-center ${Number(item.quantity) <= Number(item.minStock || 0) ? "text-destructive font-semibold" : ""}`}>
+                      {item.quantity}
+                    </td>
+                    <td className="px-4 py-3">{item.unit}</td>
+                    <td className="px-4 py-3 text-center">{item.minStock || '-'}</td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleEditItem(item)}
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-destructive" 
+                        onClick={() => handleDeleteItem(item.id)}
+                      >
+                        Hapus
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {currentItem ? "Edit Item" : "Tambah Item"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nama Item</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleChange("name", e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="category">Kategori</Label>
+              <Select 
+                value={formData.categoryId} 
+                onValueChange={(value) => handleChange("categoryId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(category => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Stok</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min={0}
+                  value={formData.quantity}
+                  onChange={(e) => handleChange("quantity", parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="unit">Satuan</Label>
+                <Input
+                  id="unit"
+                  value={formData.unit}
+                  onChange={(e) => handleChange("unit", e.target.value)}
+                  placeholder="pcs, kg, box, dll"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="minStock">Stok Minimal (Opsional)</Label>
+              <Input
+                id="minStock"
+                type="number"
+                min={0}
+                value={formData.minStock}
+                onChange={(e) => handleChange("minStock", parseInt(e.target.value) || 0)}
+              />
+              <p className="text-xs text-muted-foreground">Batas minimal stok sebelum diberi peringatan</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenDialog(false)}>
+              Batal
+            </Button>
+            <Button onClick={handleSaveItem}>
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default Items;
