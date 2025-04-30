@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const BASE_URL = 'https://shoping-time-backend.vercel.app';
+const BASE_URL = 'https://golang-fiber-backend.vercel.app';
+// const BASE_URL = 'https://golang-gin-backend.vercel.app';
 // const BASE_URL = 'http://localhost:8000';
 
 const makeCallApi = ({
