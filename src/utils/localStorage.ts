@@ -6,20 +6,20 @@ export interface Category {
   description?: string;
 }
 
-export interface Item {
+interface Item {
   id: string;
   name: string;
-  categoryId: string;
-  quantity: number;
+  category_id: string;
+  stock: number;
   unit: string;
-  minStock?: number;
+  min_stock?: number;
 }
 
 export interface StockMovement {
   id: string;
   itemId: string;
   type: 'in' | 'out';
-  quantity: number;
+  stock: number;
   date: string;
   notes: string;
 }
@@ -74,12 +74,12 @@ export const deleteItem = (id: string): void => {
   localStorage.setItem('items', JSON.stringify(items));
 };
 
-export const updateItemStock = (id: string, newQuantity: number): void => {
+export const updateItemStock = (id: string, newstock: number): void => {
   const items = getAllItems();
   const item = items.find(i => i.id === id);
   
   if (item) {
-    item.quantity = newQuantity;
+    item.stock = newstock;
     localStorage.setItem('items', JSON.stringify(items));
   }
 };

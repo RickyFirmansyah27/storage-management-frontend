@@ -7,7 +7,7 @@ const DEFAULT_QUERY_OPTIONS = {
   refetchOnWindowFocus: false,
 };
 
-const basePath = "/v1/items";
+const basePath = "/items";
 
 export const useAddItems = () => {
   return useMutation({
@@ -16,7 +16,7 @@ export const useAddItems = () => {
   });
 };
 
-export const useGetAllItemss = (query = {}) => {
+export const useGetAllItems = (query = {}) => {
   return useQuery({
     ...DEFAULT_QUERY_OPTIONS,
     queryKey: ["get all Items", query],

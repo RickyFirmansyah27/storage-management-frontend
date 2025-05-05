@@ -1,9 +1,9 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { get } from "lodash";
 import { 
   Dialog, 
   DialogContent, 
@@ -19,14 +19,15 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { getAllItems, saveItem, deleteItem, getAllCategories } from "@/utils/localStorage";
+import { useGetAllItems } from "@/services/item-service";
 
 interface Item {
   id: string;
   name: string;
-  categoryId: string;
-  quantity: number;
+  category_id: string;
+  stock: number;
   unit: string;
-  minStock?: number;
+  min_stock?: number;
 }
 
 const Items = () => {
@@ -38,16 +39,19 @@ const Items = () => {
   
   const [formData, setFormData] = React.useState({
     name: "",
-    categoryId: "",
-    quantity: 0,
+    category_id: "",
+    stock: 0,
     unit: "",
-    minStock: 0
+    min_stock: 0
   });
 
   React.useEffect(() => {
     loadItems();
     loadCategories();
   }, []);
+
+  const { data: dataItems, isLoading, refetch } = useGetAllItems({});
+  const itemList = get(dataItems, "data.data.items", []);
 
   const loadItems = () => {
     const loadedItems = getAllItems();
@@ -63,10 +67,10 @@ const Items = () => {
     setCurrentItem(null);
     setFormData({
       name: "",
-      categoryId: "",
-      quantity: 0,
+      category_id: "",
+      stock: 0,
       unit: "",
-      minStock: 0
+      min_stock: 0
     });
     setOpenDialog(true);
   };
@@ -75,10 +79,10 @@ const Items = () => {
     setCurrentItem(item);
     setFormData({
       name: item.name,
-      categoryId: item.categoryId,
-      quantity: item.quantity,
+      category_id: item.category_id,
+      stock: item.stock,
       unit: item.unit,
-      minStock: item.minStock || 0
+      min_stock: item.min_stock || 0
     });
     setOpenDialog(true);
   };
@@ -87,13 +91,13 @@ const Items = () => {
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleSaveItem = () => {
+  const handleSaveItem = async () => {
     if (!formData.name.trim()) {
       toast.error("Nama item tidak boleh kosong");
       return;
     }
 
-    if (!formData.categoryId) {
+    if (!formData.category_id) {
       toast.error("Kategori harus dipilih");
       return;
     }
@@ -105,14 +109,14 @@ const Items = () => {
 
     saveItem(itemData);
     setOpenDialog(false);
-    loadItems();
+    await refetch(); // Refresh the items list
     toast.success(`Item berhasil ${currentItem ? 'diperbarui' : 'ditambahkan'}`);
   };
 
-  const handleDeleteItem = (id: string) => {
+  const handleDeleteItem = async (id: string) => {
     if (confirm("Yakin ingin menghapus item ini?")) {
       deleteItem(id);
-      loadItems();
+      await refetch(); // Refresh the items list
       toast.success("Item berhasil dihapus");
     }
   };
@@ -121,8 +125,8 @@ const Items = () => {
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getCategoryName = (categoryId: string) => {
-    const category = categories.find(cat => cat.id === categoryId);
+  const getCategoryName = (category_id: string) => {
+    const category = categories.find(cat => cat.id === category_id);
     return category ? category.name : "Tidak ada kategori";
   };
 
@@ -156,22 +160,22 @@ const Items = () => {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredItems.length === 0 ? (
+              {itemList.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-4 text-center text-muted-foreground">
                     {searchTerm ? "Tidak ada item yang ditemukan" : "Belum ada item tersimpan"}
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => (
+                itemList?.map((item) => (
                   <tr key={item.id} className="hover:bg-muted/50">
                     <td className="px-4 py-3">{item.name}</td>
-                    <td className="px-4 py-3">{getCategoryName(item.categoryId)}</td>
-                    <td className={`px-4 py-3 text-center ${Number(item.quantity) <= Number(item.minStock || 0) ? "text-destructive font-semibold" : ""}`}>
-                      {item.quantity}
+                    <td className="px-4 py-3">{getCategoryName(item.category_id)}</td>
+                    <td className={`px-4 py-3 text-center ${Number(item.stock) <= Number(item.min_stock || 0) ? "text-destructive font-semibold" : ""}`}>
+                      {item.stock}
                     </td>
                     <td className="px-4 py-3">{item.unit}</td>
-                    <td className="px-4 py-3 text-center">{item.minStock || '-'}</td>
+                    <td className="px-4 py-3 text-center">{item.min_stock || '-'}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <Button 
                         variant="ghost" 
@@ -217,8 +221,8 @@ const Items = () => {
             <div className="space-y-2">
               <Label htmlFor="category">Kategori</Label>
               <Select 
-                value={formData.categoryId} 
-                onValueChange={(value) => handleChange("categoryId", value)}
+                value={formData.category_id} 
+                onValueChange={(value) => handleChange("category_id", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih kategori" />
@@ -235,13 +239,13 @@ const Items = () => {
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="quantity">Stok</Label>
+                <Label htmlFor="stock">Stok</Label>
                 <Input
-                  id="quantity"
+                  id="stock"
                   type="number"
                   min={0}
-                  value={formData.quantity}
-                  onChange={(e) => handleChange("quantity", parseInt(e.target.value) || 0)}
+                  value={formData.stock}
+                  onChange={(e) => handleChange("stock", parseInt(e.target.value) || 0)}
                 />
               </div>
               <div className="space-y-2">
@@ -256,13 +260,13 @@ const Items = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="minStock">Stok Minimal (Opsional)</Label>
+              <Label htmlFor="min_stock">Stok Minimal (Opsional)</Label>
               <Input
-                id="minStock"
+                id="min_stock"
                 type="number"
                 min={0}
-                value={formData.minStock}
-                onChange={(e) => handleChange("minStock", parseInt(e.target.value) || 0)}
+                value={formData.min_stock}
+                onChange={(e) => handleChange("min_stock", parseInt(e.target.value) || 0)}
               />
               <p className="text-xs text-muted-foreground">Batas minimal stok sebelum diberi peringatan</p>
             </div>
